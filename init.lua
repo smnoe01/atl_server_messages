@@ -1,28 +1,65 @@
-atl_server_messages = {}
-atl_server_messages.modpath = minetest.get_modpath("atl_server_messages")
-atl_server_messages.messages_timer = 300 -- 5 minutes | Min 30 For avoid spam
-atl_server_messages.messages_color = "#32bc39" -- Green
-atl_server_messages.message_index = 1
+local modname = "atl_server_messages"
+-- Traduction
+local S = minetest.get_translator(modname)
+-- Configuration des messages
+local messages_timer = 180  -- Temps en secondes (note: doit etre au moins 30 sec pour eviter le spam)
+local messages_color = "grey"
+local message_index = 1
 
-function atl_server_messages.load_file(path)
-    local status, err = pcall(dofile, path)
-    if not status then
-        minetest.log("error", "-!- Failed to load file: " .. path .. " - Error: " .. err)
-    else
-        minetest.log("action", "-!- Successfully loaded file: " .. path)
+local messages_list = {
+    S("Welcome to the server, please respect the rules established there."),
+    S("Any form of nuisance, spam, insult and other is prohibited."),
+    S("Please respect the players on the server and their administrator."),
+    S("Enjoy your time on the server and have fun!"),
+    S("If you have any questions, feel free to ask the moderators."),
+    S("Remember to report any issues or bugs you encounter."),
+    S("Be kind and helpful to new players."),
+    S("Cheating and hacking are strictly forbidden and will result in a ban."),
+    S("Respect the privacy and personal information of other players."),
+    S("Use appropriate language and avoid offensive content."),
+    S("Do not share personal or sensitive information on the server."),
+    S("Follow the instructions given by the server staff."),
+    S("Participate in server events and activities to enhance your experience."),
+    S("Help maintain a positive and friendly atmosphere on the server."),
+    S("Thank you for being a part of our community!")
+}
+
+local function send_next_message()
+    local message = messages_list[message_index]
+    minetest.chat_send_all(minetest.colorize(messages_color, message))
+
+    message_index = message_index + 1
+    if message_index > #messages_list then
+        message_index = 1
     end
 end
 
-if atl_server_messages.modpath then
-    local files_to_load = {
-        "script/api.lua",
-        "script/messages_list.lua",
-        "script/events.lua",
-    }
-
-    for _, file in ipairs(files_to_load) do
-        atl_server_messages.load_file(atl_server_messages.modpath .. "/" .. file)
+local function start_timer()
+    if messages_timer < 30 then
+        minetest.log("error", "messages_timer ne peut pas être inférieur à 30 secondes (pour éviter le spam)")
+        return
     end
-else
-    minetest.log("error", "-!- Files in " .. atl_server_messages.modpath .. " mod are not set or valid.")
+
+    minetest.after(messages_timer, function()
+        if #minetest.get_connected_players() > 0 then
+            send_next_message()
+            start_timer()
+        end
+    end)
 end
+
+local function stop_timer()
+    minetest.clear_after()
+end
+
+minetest.register_on_joinplayer(function(player)
+    if #minetest.get_connected_players() <= 1 then
+        start_timer()
+    end
+end)
+
+minetest.register_on_leaveplayer(function(player)
+    if #minetest.get_connected_players() == 0 then
+        stop_timer()
+    end
+end)
